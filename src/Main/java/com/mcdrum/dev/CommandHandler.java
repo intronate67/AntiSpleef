@@ -3,93 +3,141 @@ package com.mcdrum.dev;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.conversations.*;
 import org.bukkit.entity.Player;
 
 /**
- * Created by Admin on 6/22/2014.
+ * @Author Hunter Sharpe
  */
-public class CommandHandler implements CommandExecutor{
+public class CommandHandler implements CommandExecutor, ConversationAbandonedListener{
 
-    FileConfiguration config = AntiSpleef.getInstance().getConfig();
+    private static CommandHandler ch = new CommandHandler();
+
+    public static CommandHandler getInstance(){
+        return ch;
+    }
+
+    static String pre = String.format("%s[%sAntiSpleef%s] ", ChatColor.DARK_GRAY, ChatColor.BLUE, ChatColor.DARK_GRAY);
+
+    public ConversationFactory conversationFactory;
+
+    private static Location blueSpawn;
+    private static Location redSpawn;
+    private static Location endLocation;
+
+    private static String arenaName;
 
     public boolean onCommand(CommandSender sender, Command cmd, String lable, String[] args){
-
-        String pre = String.format("%s[%sAntiSpleef%s] ", ChatColor.DARK_GRAY, ChatColor.BLUE, ChatColor.DARK_GRAY);
-
-        if(args.length == 0 || args.length >= 3){
-            sender.sendMessage(pre + ChatColor.GRAY + "Use /as help for help.");
-            return true;
-        }
         if(!(sender instanceof Player)){
-            sender.sendMessage("Only players can run AntiSpleef commands!");
+            sender.sendMessage("Only players can perform AntiSpleef commands!");
             return true;
         }
         Player p = (Player) sender;
-        if(args[0].equalsIgnoreCase("create")){
+        if(args[0].equalsIgnoreCase("createarena")){
             if(args.length != 2){
-                p.sendMessage(pre + ChatColor.GRAY + "Command Usage: /as create <arena-name>");
+                p.sendMessage(pre + ChatColor.GRAY + "Command usage: /as createarena <arenaName> - starts conversation with player to set arena information,");
                 return true;
             }
-            if(config.contains(args[1])){
-                p.sendMessage(pre + ChatColor.GRAY + "Arena already exists!");
+            if(!(p instanceof Conversable)){
+                p.sendMessage("Nope");
                 return true;
             }
-            config.set("Arenas", args[1]);
-            p.sendMessage(pre + ChatColor.GRAY + "Created arena: " + args[1] + "!");
-            return true;
-        }
-        if(args[0].equalsIgnoreCase("setspawn")){
-            if(args.length != 3){
-                p.sendMessage(pre + ChatColor.GRAY + "Command usage: /as setspawn <1-2> <arena-name>");
-                return true;
-            }
-            if(!args[1].equalsIgnoreCase("1") || !args[1].equalsIgnoreCase("2")){
-                p.sendMessage(pre + ChatColor.GRAY + "Invalid spawn number, has to be either 1 or 2");
-                return true;
-            }
-            if(!config.contains(args[2])){
-                p.sendMessage(pre + ChatColor.GRAY + "Arena does not exist, you should make one!");
-                return true;
-            }
-            double x = p.getLocation().getX();
-            double y = p.getLocation().getY();
-            double z = p.getLocation().getZ();
-            String world = p.getWorld().getName();
-            config.set("Arena." + args[2] + args[1] + "x", x);
-            config.set("Arena." + args[2] + args[1] + "y", y);
-            config.set("Arena." + args[2] + args[1] + "z", z);
-            config.set("Arena." + args[2] + args[1] + "world", world);
-            p.sendMessage(pre + ChatColor.GRAY + "Created spawn #" + args[1] + " at " + x + ", " + y + ", " + z + ", " + world);
-            return true;
-        }
-        if(args[0].equalsIgnoreCase("join")){
-            if(args.length != 2){
-                p.sendMessage(pre + ChatColor.GRAY + "Not a valid arena!");
-                return true;
-            }
-            World world = Bukkit.getWorld(config.getString("Arena." + args[1] + "world"));
-            double x = config.getDouble("Arena." + args[1] + "x");
-            double y = config.getDouble("Arena." + args[1] + "y");
-            double z = config.getDouble("Arena." + args[1] + "z");
-            Location loc = new Location(world, x, y, z);
-            ArenaManager.getInstance().addPlayer(p, loc, args[1]);
-            return true;
-        }
-        if(args[0].equalsIgnoreCase("leave")){
-            if(args.length != 1){
-                p.sendMessage(pre + ChatColor.GRAY + "Command usage: /as leave");
-                return true;
-            }
-            String arena = ArenaManager.getInstance().inArena.get(p.getName());
-            ArenaManager.getInstance().removePlayer(p, arena);
-            return true;
+            arenaName = args[1];
+            conversationFactory.buildConversation((Conversable)p).begin();
+
         }
         return true;
     }
+    public void conversationAbandoned(ConversationAbandonedEvent abandonedEvent){
+        if(abandonedEvent.gracefulExit()){
+            abandonedEvent.getContext().getForWhom().sendRawMessage("Conversation exited gracefully.");
+        }else{
+            abandonedEvent.getContext().getForWhom().sendRawMessage("Conversation abandoned by " + abandonedEvent.getCanceller().getClass().getName());
+        }
+    }
+
+    public static class SpawnPrompt extends FixedSetPrompt {
+        public SpawnPrompt(){
+            super("done",
+                  "Done",
+                    "Exit");
+        }
+        public String getPromptText(ConversationContext context){
+            return pre + ChatColor.GRAY + "Goto the blue spawn point and type - done or Type Exit to exit conversation.";
+        }
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext context, String s){
+            if(s.equalsIgnoreCase("exit")){
+                return Prompt.END_OF_CONVERSATION;
+            }
+            String str = context.getForWhom().getClass().getName();
+            Player p = Bukkit.getPlayer(str);
+            Location loc = p.getLocation();
+            blueSpawn = loc;
+            context.setSessionData("type", s);
+
+            //TODO: set blue spawn to conversable player location.
+            return new SpawnPrompt1();
+        }
+    }
+    public static class SpawnPrompt1 extends FixedSetPrompt{
+        public SpawnPrompt1(){
+            super("done",
+                    "Done",
+                    "Exit");
+        }
+        public String getPromptText(ConversationContext context){
+            return pre + ChatColor.GRAY +"Goto red spawn point and type - done or Type exit to exit conversation.";
+        }
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext context, String s){
+            if(s.equalsIgnoreCase("exit")){
+                return Prompt.END_OF_CONVERSATION;
+            }
+            String str = context.getForWhom().getClass().getName();
+            Player p = Bukkit.getPlayer(str);
+            Location loc = p.getLocation();
+            redSpawn = loc;
+            context.setSessionData("type", s);
+            return new SpawnPrompt2();
+        }
+
+    }
+    public static class SpawnPrompt2 extends FixedSetPrompt{
+        public SpawnPrompt2(){
+            super("done",
+                    "Done",
+                    "Exit");
+        }
+        public String getPromptText(ConversationContext context){
+            return pre + ChatColor.GRAY + "Goto end location point and type - done or Type exit to exit conversation.";
+        }
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext context, String s){
+            if(s.equalsIgnoreCase("exit")){
+                return Prompt.END_OF_CONVERSATION;
+            }
+            String str = context.getForWhom().getClass().getName();
+            Player p = Bukkit.getPlayer(str);
+            Location loc = p.getLocation();
+            endLocation = loc;
+            context.setSessionData("type", s);
+            return new FinishedPrompt();
+        }
+    }
+    private static class FinishedPrompt extends MessagePrompt{
+        public String getPromptText(ConversationContext context){
+            ArenaManager.getManager().createArena(arenaName, blueSpawn, redSpawn, endLocation, 2);
+            return pre + ChatColor.GRAY + "You arena has been made";
+        }
+        @Override
+        protected Prompt getNextPrompt(ConversationContext context){
+            return Prompt.END_OF_CONVERSATION;
+        }
+    }
+
 
 }
