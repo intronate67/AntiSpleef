@@ -78,8 +78,6 @@ public class CommandHandler implements CommandExecutor, ConversationAbandonedLis
             Location loc = p.getLocation();
             blueSpawn = loc;
             context.setSessionData("type", s);
-
-            //TODO: set blue spawn to conversable player location.
             return new SpawnPrompt1();
         }
     }
