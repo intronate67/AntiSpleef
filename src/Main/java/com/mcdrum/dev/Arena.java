@@ -1,29 +1,86 @@
 package com.mcdrum.dev;
 
-import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+
+import java.util.ArrayList;
 
 /**
- * Created by Admin on 6/22/2014.
+ * @Author Hunter Sharpe
  */
 public class Arena {
 
-    int countdown;
-    int id;
+    public static ArrayList<Arena> arenaObjects = new ArrayList<Arena>();
 
-    public void countDown(final Player p){
-        countdown = 300;
-        final String arena = ArenaManager.getInstance().inArena.get(p.getName());
-        id = AntiSpleef.getInstance().getServer().getScheduler().scheduleSyncRepeatingTask(AntiSpleef.getInstance(), new BukkitRunnable() {
+    private Location blueSpawn, redSpawn, lobbyLocation, endLocation;
 
-            @Override
-            public void run() {
-                if(countdown == 0){
-                    ArenaManager.getInstance().removePlayer(p, arena);
-                }
-                countdown--;
-            }
-        }, 0L, 20L);
+    private String name;
+
+    private ArrayList<String> players = new ArrayList<String>();
+
+    private int maxPlayers = 2;
+
+    private boolean inGame = false;
+
+    public Arena(String arenaName, Location blueSpawn, Location redSpawn, Location endLocation, int maxPlayers){
+
+        this.name = arenaName;
+        this.blueSpawn = blueSpawn;
+        this.redSpawn = redSpawn;
+        this.endLocation = endLocation;
+        this.maxPlayers = maxPlayers;
+
+        arenaObjects.add(this);
     }
+    public Location getBlueSpawn(){
+        return this.blueSpawn;
+    }
+    public Location getRedSpawn(){
+        return this.redSpawn;
+    }
+    public void setBlueSpawn(Location blueSpawn){
+        this.blueSpawn = blueSpawn;
+    }
+    public void setRedSpawn(Location redSpawn){
+        this.redSpawn = redSpawn;
+    }
+    public Location getEndLocation(){
+        return this.endLocation;
+    }
+    public void setEndLocation(Location endLocation){
+        this.endLocation = endLocation;
+    }
+    public ArrayList<String> getPlayers(){
+        return this.players;
+    }
+
+    public String getName(){
+        return this.name;
+    }
+    public void setName(String name){
+        this.name = name;
+    }
+    public boolean isFull(){
+        if(players.size() == 2){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    public boolean isInGame(){
+        return inGame;
+    }
+    public void setInGame(boolean inGame){
+        this.inGame = inGame;
+    }
+    public void sendMessage(String message){
+        String pre = String.format("%s[%sAntiSpleef%s] ", ChatColor.DARK_GRAY, ChatColor.BLUE, ChatColor.DARK_GRAY);
+        for(String s : players){
+            Bukkit.getPlayer(s).sendMessage(pre + message);
+        }
+    }
+
+
 
 }
