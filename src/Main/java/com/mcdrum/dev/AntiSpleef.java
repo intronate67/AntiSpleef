@@ -1,33 +1,29 @@
 package com.mcdrum.dev;
 
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.PluginManager;
+import org.bukkit.conversations.ConversationFactory;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-
 /**
- * Created by Admin on 6/22/2014.
+ * @Author Hunter Sharpe
  */
 public class AntiSpleef extends JavaPlugin{
 
-    private static AntiSpleef instance = new AntiSpleef();
-
-    public static AntiSpleef getInstance(){
-        return instance;
-    }
+    private ConversationFactory conversationFactory;
 
     public void onEnable(){
         getCommand("as").setExecutor(new CommandHandler());
-        if(!new File(this.getDataFolder(), "config.yml").exists()){
-            this.saveDefaultConfig();
-        }
-        PluginManager pm = Bukkit.getPluginManager();
-        pm.registerEvents(new PlayerBuild(), this);
-
     }
     public void onDisable(){
 
+    }
+    public AntiSpleef(){
+        CommandHandler.getInstance().conversationFactory = new ConversationFactory(this)
+                .withModality(true)
+                .withFirstPrompt(new CommandHandler.SpawnPrompt())
+                .withEscapeSequence("/exit")
+                .withTimeout(10)
+                .thatExcludesNonPlayersWithMessage("You cannot run these commands!")
+                .addConversationAbandonedListener(new CommandHandler());
     }
 
 }
